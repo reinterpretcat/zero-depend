@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::ops::Range;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 // --- Core Iterator Type ---
@@ -252,11 +252,7 @@ impl<P: ParallelProducer> ParIter<P> {
                             }
                         }
 
-                        if has_items {
-                            Some(local_acc)
-                        } else {
-                            None
-                        }
+                        if has_items { Some(local_acc) } else { None }
                     })
                 })
                 .collect();

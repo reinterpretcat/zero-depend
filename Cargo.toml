@@ -1,12 +1,27 @@
+
 [workspace]
+resolver = "2"
+
 members = [
     "tensor-rs",
     "par-iter",
     "small-vec"
 ]
 
+[workspace.package]
+version = "0.1.0"
+authors = ["Ilya Builuk <ilya.builuk@gmail.com>"]
+license = "Apache-2.0"
+keywords = ["zero-dependency"]
+categories = ["algorithms"]
+readme = "README.md"
+homepage = "https://github.com/reinterpretcat/zero_depend"
+repository = "https://github.com/reinterpretcat/zero_depend"
+edition = "2024"
+
+
 
 [workspace.dependencies]
-par_iter = { path = "par-iter" }
-small_vec = { path = "small-vec" }
-tensor_rs = { path = "tensor-rs" }
+par-iter = { path = "par-iter" }
+small-vec = { path = "small-vec" }
+tensor-rs = { path = "tensor-rs" }

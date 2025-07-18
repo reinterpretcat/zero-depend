@@ -1,7 +1,15 @@
 [package]
 name = "par-iter"
-version = "0.1.0"
-edition = "2021"
+description = "A zero-dependency parallel iterator library for Rust"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
 
 [lib]
 path = "src/lib.rs"
