@@ -31,8 +31,13 @@ use self::for_each::ForEach;
 mod reduce;
 use self::reduce::Reduce;
 
-// --- Core Iterator Type ---
 
+/// A parallel iterator that allows for efficient parallel processing of items.
+/// It provides methods to configure the number of threads and chunk size for work distribution.
+/// The iterator can be created from various data structures like slices, vectors, and ranges.
+/// It supports operations like `for_each`, `collect`, `reduce`, and `find`.
+/// This iterator is designed to work with types that implement the `ParallelProducer` trait,
+/// which defines how to produce items in parallel.
 pub struct ParIter<P> {
     producer: P,
     config: ExecutionConfig,
@@ -150,8 +155,11 @@ impl<P: ParallelProducer> ParIter<P> {
     }
 }
 
-// --- Configuration ---
 
+/// Configuration for parallel execution.
+/// Allows setting the number of threads and chunk size for work distribution.
+/// If not set, defaults to the number of available threads and a chunk size based on the total number of items.
+/// This configuration can be adjusted to optimize performance based on the workload and system capabilities.
 #[derive(Debug, Default, Clone)]
 struct ExecutionConfig {
     num_threads: Option<usize>,
@@ -171,8 +179,7 @@ impl ExecutionConfig {
     }
 }
 
-// --- Core Trait ---
-
+/// Trait for parallel producers that can be used with `ParIter`.
 pub trait ParallelProducer: Send + Sync {
     type Item;
 
@@ -183,8 +190,7 @@ pub trait ParallelProducer: Send + Sync {
     fn get_item(&self, index: usize) -> Option<Self::Item>;
 }
 
-// --- Conversion Traits ---
-
+/// Trait for types that can be converted into a parallel iterator.
 #[doc(hidden)]
 pub trait IntoParallelIterator {
     type Item;
@@ -193,6 +199,7 @@ pub trait IntoParallelIterator {
     fn into_par_iter(self) -> ParIter<Self::Producer>;
 }
 
+/// Trait for slices that can be iterated in parallel.
 #[doc(hidden)]
 pub trait ParallelSlice<T: Send + Sync> {
     fn par_iter(&self) -> ParIter<SliceIter<T>>;
@@ -255,9 +262,7 @@ impl<T: Send + Sync> IntoParallelIterator for Vec<T> {
     }
 }
 
-// --- Producer Implementations ---
-
-// Producer for owned Vec<T>
+/// Producer for owned Vec<T>
 #[doc(hidden)]
 pub struct VecProducer<T> {
     data: Vec<T>,
@@ -289,7 +294,7 @@ impl<T: Send + Sync> ParallelProducer for VecProducer<T> {
     }
 }
 
-// Producer for immutable slices
+/// Producer for immutable slices
 #[doc(hidden)]
 pub struct SliceIter<'a, T: 'a> {
     ptr: *const T,
@@ -326,7 +331,7 @@ impl<'a, T: Send + Sync> ParallelProducer for SliceIter<'a, T> {
     }
 }
 
-// Producer for mutable slices
+/// Producer for mutable slices
 #[doc(hidden)]
 pub struct SliceIterMut<'a, T: 'a> {
     ptr: *mut T,
@@ -363,7 +368,7 @@ impl<'a, T: Send + Sync> ParallelProducer for SliceIterMut<'a, T> {
     }
 }
 
-// Producer for ranges
+/// Producer for ranges
 #[doc(hidden)]
 pub struct RangeProducer {
     range: Range<usize>,
