@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "tensor-rs",
+    "par-iter",
+    "small-vec"
+]
