@@ -4,3 +4,9 @@ members = [
     "par-iter",
     "small-vec"
 ]
+
+
+[workspace.dependencies]
+par_iter = { path = "par-iter" }
+small_vec = { path = "small-vec" }
+tensor_rs = { path = "tensor-rs" }
