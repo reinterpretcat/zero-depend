@@ -125,6 +125,14 @@ impl<P: ParallelProducer> ParIter<P> {
         ForEach::new(self.producer, self.config).for_each(f);
     }
 
+    pub fn try_for_each<F, E>(self, f: F) -> Result<(), E>
+    where
+        F: Fn(P::Item) -> Result<(), E> + Send + Sync,
+        E: Send + Sync + 'static,
+    {
+        ForEach::new(self.producer, self.config).try_for_each(f)
+    }
+
     /// Collects all items into a Vec, preserving the original order.
     pub fn collect<T, B>(self) -> B
     where
