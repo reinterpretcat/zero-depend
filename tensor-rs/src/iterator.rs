@@ -1,4 +1,7 @@
 use super::*;
+use par_iter::*;
+
+use std::marker::PhantomData;
 
 /// An iterator over the elements of a tensor in a row-major order.
 pub struct TensorIter<'a, T, const N: usize> {
@@ -88,6 +91,62 @@ impl<'a, T, const N: usize> Iterator for ElementsIter<'a, T, N> {
     }
 }
 
+// Parallel iterator implementation for Tensor
+
+// Extension trait for tensor parallel iteration
+pub trait ParallelTensor<T, const N: usize> {
+    fn par_rows(&self) -> ParIter<TensorRowProducer<T, N>>;
+}
+
+impl<T: Send + Sync, const N: usize> ParallelTensor<T, N> for Tensor<T, N> {
+    fn par_rows(&self) -> ParIter<TensorRowProducer<T, N>> {
+        ParIter::new(TensorRowProducer::new(self))
+    }
+}
+
+/// Producer for tensor rows that returns Tensor objects for each row
+pub struct TensorRowProducer<'a, T, const N: usize> {
+    tensor: &'a Tensor<T, N>,
+    num_rows: usize,
+    _phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T, const N: usize> TensorRowProducer<'a, T, N> {
+    pub fn new(tensor: &'a Tensor<T, N>) -> Self {
+        let num_rows = if tensor.shape.is_empty() {
+            0
+        } else {
+            tensor.shape[0]
+        };
+        Self {
+            tensor,
+            num_rows,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+unsafe impl<'a, T: Send + Sync, const N: usize> Send for TensorRowProducer<'a, T, N> {}
+unsafe impl<'a, T: Send + Sync, const N: usize> Sync for TensorRowProducer<'a, T, N> {}
+
+impl<'a, T: Send + Sync, const N: usize> ParallelProducer for TensorRowProducer<'a, T, N> {
+    type Item = (usize, Tensor<T, N>); // (row_index, row_tensor)
+
+    fn len(&self) -> usize {
+        self.num_rows
+    }
+
+    fn get_item(&self, index: usize) -> Option<Self::Item> {
+        if index >= self.num_rows {
+            return None;
+        }
+
+        // Create a tensor slice for this row: tensor[index, :]
+        let row_tensor = self.tensor.slice(s![index]).ok()?;
+        Some((index, row_tensor))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,6 +173,19 @@ mod tests {
             Tensor::new(vec![12, 13, 14, 15], &[2, 2])?
         );
         assert!(iter.next().is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parallel_tensor_rows() -> Result<()> {
+        let tensor = Tensor::<i32>::arange(12)?.view(&[3, 4])?;
+
+        let rows: Vec<(usize, Tensor<i32>)> = tensor.par_rows().collect();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0], (0, Tensor::from(vec![0, 1, 2, 3])));
+        assert_eq!(rows[1], (1, Tensor::from(vec![4, 5, 6, 7])));
+        assert_eq!(rows[2], (2, Tensor::from(vec![8, 9, 10, 11])));
 
         Ok(())
     }

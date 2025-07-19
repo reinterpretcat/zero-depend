@@ -16,3 +16,4 @@ path = "src/lib.rs"
 
 [dependencies]
 small-vec = { workspace = true}
+par-iter = { workspace = true }
