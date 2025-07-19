@@ -7,6 +7,8 @@ use std::thread;
 mod take;
 pub use self::take::Take;
 
+mod cartesian;
+pub use self::cartesian::CartesianProduct;
 mod chunks;
 pub use self::chunks::{Chunks, ChunksMut};
 mod enumerate;
@@ -64,6 +66,36 @@ impl<P> ParIter<P> {
 }
 
 impl<P: ParallelProducer> ParIter<P> {
+    /// Creates a cartesian product with another parallel iterator.
+    /// Each item in the result is a tuple (A, B) where A comes from self and B from other.
+    ///
+    /// # Example
+    /// ```
+    /// use par-iter::*;
+    ///
+    /// let vec1 = vec![1, 2, 3];
+    /// let vec2 = vec!['a', 'b'];
+    ///
+    /// let result: Vec<_> = vec1.par_iter()
+    ///     .cartesian_product(vec2.par_iter())
+    ///     .collect();
+    ///
+    /// // Result contains: [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b'), (3, 'a'), (3, 'b')]
+    /// ```
+    pub fn cartesian_product<Q: ParallelProducer>(
+        self,
+        other: ParIter<Q>,
+    ) -> ParIter<CartesianProduct<P, Q>>
+    where
+        P::Item: Clone + Send + Sync,
+        Q::Item: Clone + Send + Sync,
+    {
+        ParIter {
+            producer: CartesianProduct::new(self.producer, other.producer),
+            config: self.config,
+        }
+    }
+
     pub fn take(self, take_count: usize) -> ParIter<Take<P>> {
         ParIter {
             producer: Take::new(self.producer, take_count),
@@ -134,11 +166,10 @@ impl<P: ParallelProducer> ParIter<P> {
     }
 
     /// Collects all items into a Vec, preserving the original order.
-    pub fn collect<T, B>(self) -> B
+    pub fn collect<B>(self) -> B
     where
-        P::Item: Into<T>,
-        B: FromIterator<T>,
-        T: Send,
+        B: FromIterator<P::Item>,
+        P::Item: Send,
     {
         Collect::new(self.producer, self.config).collect()
     }

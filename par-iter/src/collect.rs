@@ -13,11 +13,10 @@ where
         Self { producer, config }
     }
 
-    pub fn collect<T, B>(self) -> B
+    pub fn collect<B>(self) -> B
     where
-        P::Item: Into<T>,
-        B: FromIterator<T>,
-        T: Send,
+        B: FromIterator<P::Item>,
+        P::Item: Send,
     {
         let total_items = self.producer.len();
         if total_items == 0 {

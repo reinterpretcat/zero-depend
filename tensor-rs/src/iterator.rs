@@ -263,10 +263,10 @@ mod tests {
     #[test]
     fn test_parallel_batch_rows() -> Result<()> {
         // 2 batches, 2 rows each, 3 cols
-        let tensor = Tensor::<i32>::arange(12)?.view(&[2, 2, 3])?; 
+        let tensor = Tensor::<i32>::arange(12)?.view(&[2, 2, 3])?;
 
         let batch_rows: Vec<(usize, usize, Tensor<i32>)> = tensor.par_batch_rows().collect();
-        
+
         assert_eq!(batch_rows.len(), 4); // 2 batches × 2 rows
         assert_eq!(batch_rows[0], (0, 0, Tensor::<i32>::from(vec![0, 1, 2])));
         assert_eq!(batch_rows[1], (0, 1, Tensor::<i32>::from(vec![3, 4, 5])));
