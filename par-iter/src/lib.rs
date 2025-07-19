@@ -15,6 +15,8 @@ mod enumerate;
 pub use self::enumerate::Enumerate;
 mod map;
 pub use self::map::Map;
+mod once;
+pub use self::once::{Once, once};
 mod zip;
 pub use self::zip::Zip;
 mod skip;
