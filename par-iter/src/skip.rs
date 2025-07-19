@@ -28,14 +28,13 @@ impl<P: ParallelProducer> ParallelProducer for Skip<P> {
 mod tests {
     use super::*;
 
-        #[test]
+    #[test]
     fn test_skip() {
         let data = (0..1000).collect::<Vec<_>>();
 
         let results: Vec<i32> = data.into_par_iter().skip(10).collect();
         assert_eq!(results, (10..1000).collect::<Vec<_>>());
     }
-
 
     #[test]
     fn test_skip_take() {

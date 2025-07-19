@@ -2,7 +2,7 @@ use crate::Tensor;
 use std::fmt;
 
 // Display implementation
-impl<T: fmt::Display> fmt::Display for Tensor<T> {
+impl<T: fmt::Display, const N: usize> fmt::Display for Tensor<T, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Calculate the maximum width needed for any element
         let max_width = self
@@ -16,7 +16,7 @@ impl<T: fmt::Display> fmt::Display for Tensor<T> {
     }
 }
 
-impl<T: fmt::Display> Tensor<T> {
+impl<T: fmt::Display, const N: usize> Tensor<T, N> {
     fn fmt_recursive(
         &self,
         f: &mut fmt::Formatter<'_>,
@@ -81,14 +81,14 @@ mod tests {
 
     #[test]
     fn test_tensor_display() -> Result<()> {
-        let tensor = Tensor::arange(5)?;
+        let tensor = Tensor::<i32>::arange(5)?;
         assert_eq!(format!("{tensor}"), "[0, 1, 2, 3, 4]");
         Ok(())
     }
 
     #[test]
     fn test_tensor_2d_display() -> Result<()> {
-        let tensor = Tensor::arange(6)?.view(&[2, 3])?;
+        let tensor = Tensor::<i32>::arange(6)?.view(&[2, 3])?;
         let expected = r#"
 [[0, 1, 2],
  [3, 4, 5]]"#;
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_tensor_3d_display() -> Result<()> {
-        let tensor = Tensor::arange(4 * 3 * 2)?.view(&[4, 3, 2])?;
+        let tensor = Tensor::<i32>::arange(4 * 3 * 2)?.view(&[4, 3, 2])?;
         let expected = r#"
 [[[ 0,  1],
   [ 2,  3],
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_tensor_3d_display_3digits() -> Result<()> {
-        let tensor = Tensor::arange(4 * 3 * 10)?.view(&[4, 3, 10])?;
+        let tensor = Tensor::<i32>::arange(4 * 3 * 10)?.view(&[4, 3, 10])?;
         let expected = r#"
 [[[  0,   1,   2,   3,   4,   5,   6,   7,   8,   9],
   [ 10,  11,  12,  13,  14,  15,  16,  17,  18,  19],
@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_tensor_4d_display() -> Result<()> {
-        let tensor = Tensor::arange(2 * 3 * 4 * 2)?.view(&[2, 3, 4, 2])?;
+        let tensor = Tensor::<i32>::arange(2 * 3 * 4 * 2)?.view(&[2, 3, 4, 2])?;
         let expected = r#"
 [[[[ 0,  1],
    [ 2,  3],

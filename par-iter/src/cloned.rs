@@ -30,7 +30,7 @@ where
 mod tests {
     use super::*;
 
-        #[test]
+    #[test]
     fn test_combinators_with_cloned() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let result: Vec<i32> = data.par_iter().cloned().map(|x| x * 2).take(3).collect();

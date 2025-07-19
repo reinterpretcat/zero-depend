@@ -1,13 +1,13 @@
 use super::*;
 use std::ops::{AddAssign, Mul};
 
-impl<T> Tensor<T>
+impl<T, const N: usize> Tensor<T, N>
 where
     T: Clone + Default + AddAssign<T> + Mul<Output = T>,
 {
     /// Computes the dot product of two 1D tensors.
     /// Returns an error if the tensors are not 1D or have different sizes.
-    pub fn dot(&self, other: &Tensor<T>) -> Result<T> {
+    pub fn dot(&self, other: &Tensor<T, N>) -> Result<T> {
         if self.shape.len() != 1 || other.shape.len() != 1 {
             return Err(TensorError::UnsupportedOperation(format!(
                 "Dot product requires 1D tensors, but got shapes {:?} and {:?}",
@@ -33,7 +33,7 @@ where
     /// Transpose the tensor by swapping two dimensions.
     /// Returns a new tensor with the specified dimensions swapped.
     /// Returns an error if the dimensions are out of bounds.
-    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T>> {
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Tensor<T, N>> {
         if dim0 >= self.shape.len() || dim1 >= self.shape.len() {
             return Err(TensorError::ShapeMismatch(format!(
                 "Invalid dimensions for transpose: {} and {}",
@@ -62,8 +62,8 @@ mod tests {
 
     #[test]
     fn test_dot() -> Result<()> {
-        let a = Tensor::arange(4)?;
-        let b = Tensor::from(vec![0, 3, 6, 9]);
+        let a = Tensor::<i32>::arange(4)?;
+        let b = Tensor::<i32>::from(vec![0, 3, 6, 9]);
         let result = a.dot(&b)?;
         assert_eq!(result, 42);
 
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_transpose() -> Result<()> {
-        let tensor = Tensor::arange(25)?.view(&[5, 5])?;
+        let tensor = Tensor::<i32>::arange(25)?.view(&[5, 5])?;
         let transposed = tensor.transpose(0, 1)?;
         assert_eq!(transposed.shape(), &[5, 5]);
         assert_eq!(*transposed.get(&[0, 0])?, 0);

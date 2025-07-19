@@ -84,11 +84,9 @@ impl<'a, T: Send + Sync> ParallelProducer for ChunksMut<'a, T> {
 unsafe impl<'a, T: Send + Sync> Send for ChunksMut<'a, T> {}
 unsafe impl<'a, T: Send + Sync> Sync for ChunksMut<'a, T> {}
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_par_chunks_zip_two() {

@@ -1,15 +1,15 @@
 use super::*;
 use std::fmt;
 
-impl<T: PartialEq + Clone + fmt::Debug> PartialEq for Tensor<T> {
+impl<T: PartialEq + Clone + fmt::Debug, const N: usize> PartialEq for Tensor<T, N> {
     fn eq(&self, other: &Self) -> bool {
         self.shape == other.shape && self.elements().eq(other.elements())
     }
 }
 
-impl<T: Eq + Clone + fmt::Debug> Eq for Tensor<T> {}
+impl<T: Eq + Clone + fmt::Debug, const N: usize> Eq for Tensor<T, N> {}
 
-impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
+impl<T: fmt::Debug, const N: usize> fmt::Debug for Tensor<T, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tensor")
             .field("shape", &self.shape)
@@ -26,9 +26,9 @@ mod tests {
     fn can_compare_tensors() -> Result<()> {
         use super::*;
 
-        let tensor1 = Tensor::arange(5)?;
-        let tensor2 = Tensor::arange(5)?;
-        let tensor3 = Tensor::arange(6)?;
+        let tensor1 = Tensor::<i32>::arange(5)?;
+        let tensor2 = Tensor::<i32>::arange(5)?;
+        let tensor3 = Tensor::<i32>::arange(6)?;
 
         assert_eq!(tensor1, tensor2);
         assert_ne!(tensor1, tensor3);
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn compare_viewed_tensors() -> Result<()> {
-        let tensor = Tensor::arange(8)?;
+        let tensor = Tensor::<i32>::arange(8)?;
 
         let view1 = tensor.view(&[2, 4])?;
         let view2 = tensor.view(&[2, 2, 2])?;
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn compare_sliced_tensors() -> Result<()> {
-        let tensor = Tensor::arange(8)?;
+        let tensor = Tensor::<i32>::arange(8)?;
 
         // 2D
         let slice = tensor.view(&[2, 4])?.slice(s![0])?;

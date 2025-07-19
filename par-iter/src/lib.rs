@@ -31,7 +31,6 @@ use self::for_each::ForEach;
 mod reduce;
 use self::reduce::Reduce;
 
-
 /// A parallel iterator that allows for efficient parallel processing of items.
 /// It provides methods to configure the number of threads and chunk size for work distribution.
 /// The iterator can be created from various data structures like slices, vectors, and ranges.
@@ -154,7 +153,6 @@ impl<P: ParallelProducer> ParIter<P> {
         Find::new(self.producer, self.config).find(predicate)
     }
 }
-
 
 /// Configuration for parallel execution.
 /// Allows setting the number of threads and chunk size for work distribution.

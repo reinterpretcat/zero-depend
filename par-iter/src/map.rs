@@ -28,11 +28,9 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_element_level_map() {

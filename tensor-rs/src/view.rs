@@ -1,8 +1,8 @@
 use super::*;
 
-impl<T> Tensor<T> {
+impl<T, const N: usize> Tensor<T, N> {
     // View operation - no data copying
-    pub fn view(&self, new_shape: &[usize]) -> Result<Tensor<T>> {
+    pub fn view(&self, new_shape: &[usize]) -> Result<Tensor<T, N>> {
         let old_size: usize = self.shape.iter().product();
         let new_size: usize = new_shape.iter().product();
 
@@ -13,7 +13,7 @@ impl<T> Tensor<T> {
         }
 
         let new_strides = Self::compute_strides(&new_shape);
-        let new_shape = new_shape.iter().copied().collect::<SmallVec<_, 4>>();
+        let new_shape = new_shape.iter().copied().collect::<SmallVec<_, N>>();
 
         Ok(Tensor {
             data: self.data.clone(),
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_view() -> Result<()> {
-        let tensor = Tensor::arange(25)?;
+        let tensor = Tensor::<i32>::arange(25)?;
         let view = tensor.view(&[5, 5])?;
         assert_eq!(view.shape(), &[5, 5]);
         assert_eq!(*view.get(&[0, 0])?, 0);

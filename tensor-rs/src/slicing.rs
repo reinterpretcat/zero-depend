@@ -178,8 +178,8 @@ macro_rules! step {
     }};
 }
 
-impl<T> Tensor<T> {
-    pub fn slice(&self, indices: &[SliceIndex]) -> Result<Tensor<T>> {
+impl<T, const N: usize> Tensor<T, N> {
+    pub fn slice(&self, indices: &[SliceIndex]) -> Result<Tensor<T, N>> {
         if indices.len() > self.shape.len() {
             return Err(TensorError::ShapeMismatch(format!(
                 "Too many slice dimensions: {} > {}",
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_s_macro_basic() -> Result<()> {
-        let tensor = Tensor::arange(20)?.view(&[4, 5])?;
+        let tensor = Tensor::<i32>::arange(20)?.view(&[4, 5])?;
 
         // Full slice
         let slice1 = tensor.slice(s![.., ..])?;
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_s_macro_negative_indices() -> Result<()> {
-        let tensor = Tensor::arange(20)?.view(&[4, 5])?;
+        let tensor = Tensor::<i32>::arange(20)?.view(&[4, 5])?;
 
         // Negative single index
         let slice1 = tensor.slice(s![-1, ..])?;
@@ -431,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_s_macro_step_positive() -> Result<()> {
-        let tensor = Tensor::arange(24)?.view(&[6, 4])?;
+        let tensor = Tensor::<i32>::arange(24)?.view(&[6, 4])?;
 
         // no end
         let slice = tensor.slice(&[step![0.., 2]])?;
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_s_macro_step_negative_ranges() -> Result<()> {
-        let tensor = Tensor::arange(24)?.view(&[6, 4])?;
+        let tensor = Tensor::<i32>::arange(24)?.view(&[6, 4])?;
 
         // negative start
         let slice = tensor.slice(&[step![-4.., 2]])?;
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_more_than_one_step_range() -> Result<()> {
-        let tensor = Tensor::arange(24)?.view(&[6, 4])?;
+        let tensor = Tensor::<i32>::arange(24)?.view(&[6, 4])?;
 
         let two_steps = tensor.slice(&[step![-6..=-2, 2], step!(.., 2)])?;
         let expected = Tensor::try_from(vec![[0, 2], [8, 10], [16, 18]])?;

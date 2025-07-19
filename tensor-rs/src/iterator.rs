@@ -1,14 +1,14 @@
 use super::*;
 
 /// An iterator over the elements of a tensor in a row-major order.
-pub struct TensorIter<'a, T> {
-    tensor: &'a Tensor<T>,
+pub struct TensorIter<'a, T, const N: usize> {
+    tensor: &'a Tensor<T, N>,
     current_index: usize,
 }
 
-impl<'a, T: Clone> IntoIterator for &'a Tensor<T> {
-    type Item = Tensor<T>;
-    type IntoIter = TensorIter<'a, T>;
+impl<'a, T: Clone, const N: usize> IntoIterator for &'a Tensor<T, N> {
+    type Item = Tensor<T, N>;
+    type IntoIter = TensorIter<'a, T, N>;
 
     fn into_iter(self) -> Self::IntoIter {
         TensorIter {
@@ -18,8 +18,8 @@ impl<'a, T: Clone> IntoIterator for &'a Tensor<T> {
     }
 }
 
-impl<'a, T: Clone> Iterator for TensorIter<'a, T> {
-    type Item = Tensor<T>;
+impl<'a, T: Clone, const N: usize> Iterator for TensorIter<'a, T, N> {
+    type Item = Tensor<T, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.tensor.shape.is_empty() || self.current_index >= self.tensor.shape[0] {
@@ -31,7 +31,7 @@ impl<'a, T: Clone> Iterator for TensorIter<'a, T> {
     }
 }
 
-impl<T> Tensor<T> {
+impl<T, const N: usize> Tensor<T, N> {
     /// Returns an iterator over the elements of the tensor.
     /// This iterator traverses the tensor's elements in a row-major order.
     pub fn elements(&self) -> impl Iterator<Item = &T> {
@@ -50,13 +50,13 @@ impl<T> Tensor<T> {
 }
 
 /// An iterator over all elements of a tensor.
-struct ElementsIter<'a, T> {
-    tensor: &'a Tensor<T>,
+struct ElementsIter<'a, T, const N: usize> {
+    tensor: &'a Tensor<T, N>,
     current_index: Vec<usize>,
     is_done: bool,
 }
 
-impl<'a, T> Iterator for ElementsIter<'a, T> {
+impl<'a, T, const N: usize> Iterator for ElementsIter<'a, T, N> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_tensor_iterator() -> Result<()> {
-        let tensor = Tensor::arange(16)?.view(&[4, 2, 2])?;
+        let tensor = Tensor::<i32>::arange(16)?.view(&[4, 2, 2])?;
 
         let mut iter = tensor.into_iter();
         assert_eq!(

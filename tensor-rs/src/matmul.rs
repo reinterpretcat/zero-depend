@@ -1,7 +1,7 @@
 use super::*;
 use std::ops::{AddAssign, Mul};
 
-impl<T> Tensor<T>
+impl<T, const N: usize> Tensor<T, N>
 where
     T: Default + Clone + AddAssign<T> + Mul<Output = T>,
 {
@@ -9,7 +9,7 @@ where
     /// Supports 2D and 3D tensors, where the last dimension of the first tensor
     /// must match the second-to-last dimension of the second tensor.
     /// Returns a new tensor containing the result of the multiplication.
-    pub fn matmul(&self, other: &Tensor<T>) -> Result<Tensor<T>> {
+    pub fn matmul(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
         match (self.shape.len(), other.shape.len()) {
             (2, 2) => self.matmul_2d(other),
             (3, 2) => self.matmul_3d_2d(other),
@@ -20,7 +20,7 @@ where
         }
     }
 
-    fn matmul_2d(&self, other: &Tensor<T>) -> Result<Tensor<T>> {
+    fn matmul_2d(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
         let (m, k) = (self.shape[0], self.shape[1]);
         let (k2, n) = (other.shape[0], other.shape[1]);
 
@@ -52,7 +52,7 @@ where
         })
     }
 
-    fn matmul_3d_2d(&self, other: &Tensor<T>) -> Result<Tensor<T>> {
+    fn matmul_3d_2d(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
         let (batch, m, k) = (self.shape[0], self.shape[1], self.shape[2]);
         let (k2, n) = (other.shape[0], other.shape[1]);
 
@@ -93,8 +93,8 @@ mod tests {
 
     #[test]
     fn test_matmul() -> Result<()> {
-        let a = Tensor::arange(12)?.view(&[3, 4])?;
-        let b = Tensor::arange(12)?.view(&[4, 3])?;
+        let a = Tensor::<i32>::arange(12)?.view(&[3, 4])?;
+        let b = Tensor::<i32>::arange(12)?.view(&[4, 3])?;
         let result = a.matmul(&b)?;
         assert_eq!(result.shape(), &[3, 3]);
         assert_eq!(*result.get(&[0, 0])?, 42);
@@ -106,8 +106,8 @@ mod tests {
 
     #[test]
     fn test_matmul_2d() -> Result<()> {
-        let a = Tensor::arange(6)?.view(&[2, 3])?;
-        let b = Tensor::arange(6)?.view(&[3, 2])?;
+        let a = Tensor::<i32>::arange(6)?.view(&[2, 3])?;
+        let b = Tensor::<i32>::arange(6)?.view(&[3, 2])?;
         let result = a.matmul(&b)?;
         assert_eq!(result.shape(), &[2, 2]);
         assert_eq!(*result.get(&[0, 0])?, 10);
@@ -119,8 +119,8 @@ mod tests {
 
     #[test]
     fn test_matmul_3d_2d() -> Result<()> {
-        let a = Tensor::arange(24)?.view(&[4, 3, 2])?;
-        let b = Tensor::arange(6)?.view(&[2, 3])?;
+        let a = Tensor::<i32>::arange(24)?.view(&[4, 3, 2])?;
+        let b = Tensor::<i32>::arange(6)?.view(&[2, 3])?;
         let result = a.matmul(&b)?;
         assert_eq!(result.shape(), &[4, 3, 3]);
         assert_eq!(*result.get(&[0, 0, 0])?, 3);
