@@ -1,3 +1,7 @@
+//! This module provides implementations for matrix multiplication operations on tensors.
+//! It supports both single-threaded and multi-threaded matrix multiplication for 2D and 3D tensors.
+//! The operations are NOT optimized for performance, but provide a clear and flexible API.
+
 use crate::iterator::ParallelTensor;
 use par_iter::*;
 
