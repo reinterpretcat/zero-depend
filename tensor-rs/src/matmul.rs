@@ -1,11 +1,14 @@
+use crate::iterator::ParallelTensor;
+use par_iter::*;
+
 use super::*;
-use std::ops::{AddAssign, Mul};
+use std::ops::{Add, AddAssign, Mul};
 
 impl<T, const N: usize> Tensor<T, N>
 where
     T: Default + Clone + AddAssign<T> + Mul<Output = T>,
 {
-    /// Performs matrix multiplication between two tensors.
+    /// Performs matrix multiplication between two tensors on single thread.
     /// Supports 2D and 3D tensors, where the last dimension of the first tensor
     /// must match the second-to-last dimension of the second tensor.
     /// Returns a new tensor containing the result of the multiplication.
@@ -87,6 +90,99 @@ where
     }
 }
 
+impl<T, const N: usize> Tensor<T, N>
+where
+    T: Clone + Send + Sync + Mul<Output = T> + Add<Output = T> + AddAssign + Default,
+{
+    /// Performs matrix multiplication between two tensors on multiple threads.
+    /// Supports 2D and 3D tensors, where the last dimension of the first tensor
+    /// must match the second-to-last dimension of the second tensor.
+    /// Returns a new tensor containing the result of the multiplication.
+    pub fn matmul_par(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
+        match (self.shape.len(), other.shape.len()) {
+            (2, 2) => self.matmul_2d_par(other),
+            (3, 2) => self.matmul_3d_2d_par(other),
+            _ => Err(TensorError::UnsupportedOperation(format!(
+                "Unsupported dimensions for matmul: {:?} x {:?}",
+                self.shape, other.shape
+            ))),
+        }
+    }
+
+    fn matmul_2d_par(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
+        if self.shape.len() != 2 || other.shape.len() != 2 {
+            return Err(TensorError::ShapeMismatch(
+                "Matrix multiplication requires 2D tensors".to_string(),
+            ));
+        }
+
+        let (m, k) = (self.shape[0], self.shape[1]);
+        let (k2, n) = (other.shape[0], other.shape[1]);
+
+        if k != k2 {
+            return Err(TensorError::ShapeMismatch(format!(
+                "Matrix dimensions don't match: {}x{} @ {}x{}",
+                m, k, k2, n
+            )));
+        }
+
+        let mut result_data = vec![T::default(); m * n];
+
+        self.par_rows()
+            .cartesian_product(other.transpose(0, 1)?.par_rows())
+            .zip(result_data.par_iter_mut())
+            .try_for_each(|(((_, row_tensor), (_, col_tensor)), v)| {
+                *v = row_tensor.dot(&col_tensor)?;
+                Ok(())
+            })?;
+
+        Ok(Tensor {
+            data: Arc::new(result_data),
+            shape: small_vec![m, n],
+            strides: small_vec![n, 1],
+            offset: 0,
+        })
+    }
+
+    fn matmul_3d_2d_par(&self, other: &Tensor<T, N>) -> Result<Tensor<T, N>> {
+        if self.shape.len() != 3 || other.shape.len() != 2 {
+            return Err(TensorError::ShapeMismatch(
+                "Matrix multiplication requires 3D and 2D tensors".to_string(),
+            ));
+        }
+
+        let (batch, m, k) = (self.shape[0], self.shape[1], self.shape[2]);
+        let (k2, n) = (other.shape[0], other.shape[1]);
+
+        if k != k2 {
+            return Err(TensorError::ShapeMismatch(format!(
+                "Matrix dimensions don't match: {}x{} @ {}x{}",
+                batch * m,
+                k,
+                k2,
+                n
+            )));
+        }
+
+        let mut result_data = vec![T::default(); batch * m * n];
+
+        self.par_batch_rows()
+            .cartesian_product(other.transpose(0, 1)?.par_rows())
+            .zip(result_data.par_iter_mut())
+            .try_for_each(|(((_, _, row_tensor), (_, col_tensor)), data)| {
+                *data = row_tensor.dot(&col_tensor)?;
+                Ok(())
+            })?;
+
+        Ok(Tensor {
+            data: Arc::new(result_data),
+            shape: small_vec![batch, m, n],
+            strides: small_vec![m * n, n, 1],
+            offset: 0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,14 +202,14 @@ mod tests {
 
     #[test]
     fn test_matmul_2d() -> Result<()> {
-        let a = Tensor::<i32>::arange(6)?.view(&[2, 3])?;
-        let b = Tensor::<i32>::arange(6)?.view(&[3, 2])?;
-        let result = a.matmul(&b)?;
-        assert_eq!(result.shape(), &[2, 2]);
-        assert_eq!(*result.get(&[0, 0])?, 10);
-        assert_eq!(*result.get(&[0, 1])?, 13);
-        assert_eq!(*result.get(&[1, 0])?, 28);
-        assert_eq!(*result.get(&[1, 1])?, 40);
+        let a = Tensor::<i32>::new((1..=12).collect(), &[3, 4])?;
+        let b = Tensor::<i32>::new((1..=12).collect(), &[4, 3])?;
+        let expected =
+            Tensor::<i32>::try_from(vec![[70, 80, 90], [158, 184, 210], [246, 288, 330]])?;
+
+        assert_eq!(a.matmul_2d(&b)?, expected, "sync matmul failed");
+        assert_eq!(a.matmul_2d_par(&b)?, expected, "parallel matmul failed");
+
         Ok(())
     }
 
@@ -121,16 +217,51 @@ mod tests {
     fn test_matmul_3d_2d() -> Result<()> {
         let a = Tensor::<i32>::arange(24)?.view(&[4, 3, 2])?;
         let b = Tensor::<i32>::arange(6)?.view(&[2, 3])?;
-        let result = a.matmul(&b)?;
-        assert_eq!(result.shape(), &[4, 3, 3]);
-        assert_eq!(*result.get(&[0, 0, 0])?, 3);
-        assert_eq!(*result.get(&[0, 0, 1])?, 4);
-        assert_eq!(*result.get(&[0, 0, 2])?, 5);
+        let expected = Tensor::new(
+            vec![
+                3, 4, 5, //
+                9, 14, 19, //
+                15, 24, 33, //
+                //
+                21, 34, 47, //
+                27, 44, 61, //
+                33, 54, 75, //
+                //
+                39, 64, 89, //
+                45, 74, 103, //
+                51, 84, 117, //
+                //
+                57, 94, 131, //
+                63, 104, 145, //
+                69, 114, 159, //
+            ],
+            &[4, 3, 3],
+        )?;
 
-        assert_eq!(*result.get(&[0, 1, 1])?, 14);
-        assert_eq!(*result.get(&[1, 2, 1])?, 54);
-        assert_eq!(*result.get(&[2, 2, 0])?, 51);
-        assert_eq!(*result.get(&[3, 2, 1])?, 114);
+        assert_eq!(a.matmul_3d_2d(&b)?, expected, "sync matmul failed");
+        assert_eq!(a.matmul_3d_2d_par(&b)?, expected, "parallel matmul failed");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_matmul_3d_2d_large() -> Result<()> {
+        let a = Tensor::<i32>::arange(15360)?.view(&[10, 64, 24])?;
+        let b = Tensor::<i32>::arange(384)?.view(&[24, 16])?;
+
+        let sync_result = a.matmul_3d_2d(&b)?;
+        let par_result = a.matmul_3d_2d_par(&b)?;
+
+        assert_eq!(sync_result.shape(), &[10, 64, 16]);
+        assert_eq!(par_result.shape(), &[10, 64, 16]);
+
+        assert_eq!(
+            sync_result, par_result,
+            "Parallel and sync matmul results differ"
+        );
+
+        println!("{par_result}");
+
         Ok(())
     }
 }

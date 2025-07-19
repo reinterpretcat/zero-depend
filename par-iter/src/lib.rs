@@ -68,22 +68,6 @@ impl<P> ParIter<P> {
 }
 
 impl<P: ParallelProducer> ParIter<P> {
-    /// Creates a cartesian product with another parallel iterator.
-    /// Each item in the result is a tuple (A, B) where A comes from self and B from other.
-    ///
-    /// # Example
-    /// ```
-    /// use par-iter::*;
-    ///
-    /// let vec1 = vec![1, 2, 3];
-    /// let vec2 = vec!['a', 'b'];
-    ///
-    /// let result: Vec<_> = vec1.par_iter()
-    ///     .cartesian_product(vec2.par_iter())
-    ///     .collect();
-    ///
-    /// // Result contains: [(1, 'a'), (1, 'b'), (2, 'a'), (2, 'b'), (3, 'a'), (3, 'b')]
-    /// ```
     pub fn cartesian_product<Q: ParallelProducer>(
         self,
         other: ParIter<Q>,
