@@ -1,3 +1,5 @@
+use crate::slicing::SliceIndex;
+
 use super::*;
 use par_iter::*;
 
@@ -96,15 +98,20 @@ impl<'a, T, const N: usize> Iterator for ElementsIter<'a, T, N> {
 // Extension trait for tensor parallel iteration
 pub trait ParallelTensor<T, const N: usize> {
     fn par_rows(&self) -> ParIter<TensorRowProducer<T, N>>;
+    fn par_batch_rows(&self) -> ParIter<BatchRowProducer<T, N>>;
 }
 
 impl<T: Send + Sync, const N: usize> ParallelTensor<T, N> for Tensor<T, N> {
     fn par_rows(&self) -> ParIter<TensorRowProducer<T, N>> {
         ParIter::new(TensorRowProducer::new(self))
     }
+    fn par_batch_rows(&self) -> ParIter<BatchRowProducer<T, N>> {
+        ParIter::new(BatchRowProducer::new(self))
+    }
 }
 
 /// Producer for tensor rows that returns Tensor objects for each row
+#[doc(hidden)]
 pub struct TensorRowProducer<'a, T, const N: usize> {
     tensor: &'a Tensor<T, N>,
     num_rows: usize,
@@ -147,6 +154,68 @@ impl<'a, T: Send + Sync, const N: usize> ParallelProducer for TensorRowProducer<
     }
 }
 
+#[doc(hidden)]
+pub struct BatchRowProducer<'a, T, const N: usize> {
+    tensor: &'a Tensor<T, N>,
+    rows_per_batch: usize,
+    total_pairs: usize,
+    _phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T, const N: usize> BatchRowProducer<'a, T, N> {
+    pub fn new(tensor: &'a Tensor<T, N>) -> Self {
+        let batch_size = if tensor.shape.len() >= 1 {
+            tensor.shape[0]
+        } else {
+            0
+        };
+        let rows_per_batch = if tensor.shape.len() >= 2 {
+            tensor.shape[1]
+        } else {
+            0
+        };
+        let total_pairs = batch_size * rows_per_batch;
+
+        Self {
+            tensor,
+            rows_per_batch,
+            total_pairs,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+unsafe impl<'a, T: Send + Sync, const N: usize> Send for BatchRowProducer<'a, T, N> {}
+unsafe impl<'a, T: Send + Sync, const N: usize> Sync for BatchRowProducer<'a, T, N> {}
+
+impl<'a, T: Send + Sync, const N: usize> ParallelProducer for BatchRowProducer<'a, T, N> {
+    type Item = (usize, usize, Tensor<T, N>); // (batch_index, row_index, row_tensor)
+
+    fn len(&self) -> usize {
+        self.total_pairs
+    }
+
+    fn get_item(&self, index: usize) -> Option<Self::Item> {
+        if index >= self.total_pairs {
+            return None;
+        }
+
+        let batch_idx = index / self.rows_per_batch;
+        let row_idx = index % self.rows_per_batch;
+
+        // Create tensor slice: tensor[batch_idx, row_idx, :]
+        let row_tensor = self
+            .tensor
+            .slice(&[
+                SliceIndex::Single(batch_idx as isize),
+                SliceIndex::Single(row_idx as isize),
+            ])
+            .ok()?;
+
+        Some((batch_idx, row_idx, row_tensor))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,10 +251,27 @@ mod tests {
         let tensor = Tensor::<i32>::arange(12)?.view(&[3, 4])?;
 
         let rows: Vec<(usize, Tensor<i32>)> = tensor.par_rows().collect();
+
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0], (0, Tensor::from(vec![0, 1, 2, 3])));
         assert_eq!(rows[1], (1, Tensor::from(vec![4, 5, 6, 7])));
         assert_eq!(rows[2], (2, Tensor::from(vec![8, 9, 10, 11])));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parallel_batch_rows() -> Result<()> {
+        // 2 batches, 2 rows each, 3 cols
+        let tensor = Tensor::<i32>::arange(12)?.view(&[2, 2, 3])?; 
+
+        let batch_rows: Vec<(usize, usize, Tensor<i32>)> = tensor.par_batch_rows().collect();
+        
+        assert_eq!(batch_rows.len(), 4); // 2 batches × 2 rows
+        assert_eq!(batch_rows[0], (0, 0, Tensor::<i32>::from(vec![0, 1, 2])));
+        assert_eq!(batch_rows[1], (0, 1, Tensor::<i32>::from(vec![3, 4, 5])));
+        assert_eq!(batch_rows[2], (1, 0, Tensor::<i32>::from(vec![6, 7, 8])));
+        assert_eq!(batch_rows[3], (1, 1, Tensor::<i32>::from(vec![9, 10, 11])));
 
         Ok(())
     }
