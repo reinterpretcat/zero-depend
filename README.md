@@ -67,15 +67,85 @@ println!("{}", a.matmul(&b)?);
 
 #### Slicing and Views
 ```rust
-use tensor_rs::Tensor;
 
-let t = Tensor::<i32>::arange(10)?;
-let slice = t.slice(2..5)?;
-assert_eq!(format!("{slice}"), "[2, 3, 4]");
+// Create a 4x6 test tensor for slicing examples
+let tensor = Tensor::<i32>::arange(24)?.view(&[4, 6])?;
 
-let t2 = Tensor::<i32>::arange(12)?.view(&[3, 4])?;
-let row = t2.slice(1..2)?;
-assert_eq!(row.shape(), &[1, 4]);
+// 1. Full slice (returns the whole tensor)
+let full_slice = tensor.slice(s![.., ..])?;
+assert_eq!(full_slice, tensor);
+
+// 2. Row slice (second row)
+let row_slice = tensor.slice(s![1, ..])?;
+assert_eq!(row_slice, Tensor::from(vec![6, 7, 8, 9, 10, 11]));
+
+// 3. Column slice (third column)
+let col_slice = tensor.slice(s![.., 2])?;
+assert_eq!(col_slice, Tensor::from(vec![2, 8, 14, 20]));
+
+// 4. Range slice (rows 1..3, cols 2..5)
+let range_slice = tensor.slice(s![1..3, 2..5])?;
+assert_eq!(range_slice, Tensor::new(vec![8, 9, 10, 14, 15, 16], &[2, 3])?);
+
+// 5. Negative single index (last row)
+let last_row = tensor.slice(s![-1, ..])?;
+assert_eq!(last_row, Tensor::from(vec![18, 19, 20, 21, 22, 23]));
+
+// 6. Negative range (last two rows)
+let last_two_rows = tensor.slice(s![-2.., ..])?;
+assert_eq!(last_two_rows, Tensor::try_from(vec![[12, 13, 14, 15, 16, 17], [18, 19, 20, 21, 22, 23]])?);
+
+// 7. Negative end (all but last column)
+let without_last_col = tensor.slice(s![.., ..-1])?;
+assert_eq!(without_last_col.shape(), &[4, 5]);
+
+// 8. Step by 2 on first dimension
+let stepped = tensor.slice(&[step![.., 2]])?;
+assert_eq!(stepped.shape(), &[2, 6]);
+
+// 9. Step with range
+let stepped_range = tensor.slice(&[step![0..3, 2]])?;
+assert_eq!(stepped_range.shape(), &[2, 6]);
+
+// 10. Inclusive range
+let inclusive = tensor.slice(s![1..=2, 2..=4])?;
+assert_eq!(inclusive.shape(), &[2, 3]);
+
+// 11. Empty slice
+let empty = tensor.slice(s![1..1, ..])?;
+assert_eq!(empty.shape(), &[0, 6]);
+
+// 12. Single element
+let single = tensor.slice(s![1, 2])?;
+assert_eq!(single.shape(), &[]);
+assert_eq!(single.elements().count(), 1);
+
+// 13. Macro-based slicing with negative indices
+let slice1 = tensor.slice(s![-1, ..])?;
+assert_eq!(slice1.shape(), &[6]);
+
+let slice2 = tensor.slice(s![-2..-1, ..])?;
+assert_eq!(slice2.shape(), &[1, 6]);
+
+let slice3 = tensor.slice(s![.., ..-1])?;
+assert_eq!(slice3.shape(), &[4, 5]);
+
+// 14. Stepped slicing with macro
+let tensor2 = Tensor::<i32>::arange(24)?.view(&[6, 4])?;
+let slice = tensor2.slice(&[step![0.., 2]])?;
+assert_eq!(slice.shape(), &[3, 4]);
+
+// 15. Multiple step ranges
+let two_steps = tensor2.slice(&[step![-6..=-2, 2], step!(.., 2)])?;
+assert_eq!(two_steps.shape(), &[3, 2]);
+
+// 16. Mixed slicing: single index and range
+let tensor3 = Tensor::<i32>::arange(24)?.view(&[2, 3, 4])?;
+let mixed = tensor3.slice(s![0, 0..2, ..])?;
+assert_eq!(mixed.shape(), &[2, 4]);
+
+// More..
+
 ```
 
 ---
